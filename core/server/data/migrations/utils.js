@@ -5,7 +5,7 @@ const commands = require('../schema').commands;
 const MIGRATION_USER = 1;
 
 /**
- * Creates a migrations which will add a new table from schema.js to the database
+ * Creates a migration which will add a new table from schema.js to the database
  */
 function addTable(name) {
     return createNonTransactionalMigration(
@@ -28,6 +28,30 @@ function addTable(name) {
 
             logging.info(`Dropping table: ${name}`);
             return commands.deleteTable(name, connection);
+        }
+    );
+}
+
+/**
+ * Creates a migration which will drop a table from the database
+ *
+ * Will NOT re-add the table in the down function because it's assumed
+ * the schema has been deleted from schema.js
+ */
+function dropTable(name) {
+    return createNonTransactionalMigration(
+        async function up(connection) {
+            const tableExists = await connection.schema.hasTable(name);
+            if (!tableExists) {
+                logging.warn(`Skipping dropping table: ${name} - table does not exist`);
+                return;
+            }
+
+            logging.info(`Dropping table: ${name}`);
+            return commands.deleteTable(name, connection);
+        },
+        async function down() {
+            return Promise.reject();
         }
     );
 }
@@ -351,6 +375,7 @@ function createDropColumnMigration(table, column, columnDefinition) {
 
 module.exports = {
     addTable,
+    dropTable,
     addPermission,
     addPermissionToRole,
     addPermissionWithRoles,
